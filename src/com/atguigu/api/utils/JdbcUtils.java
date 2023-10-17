@@ -21,6 +21,7 @@ import java.util.Properties;
  */
 public class JdbcUtils {
     private static DataSource dataSource = null;
+    private static ThreadLocal<Connection> threadLocal = new ThreadLocal<>();
     static {
         Properties properties = new Properties();
         InputStream inputStream = JdbcUtils.class.getClassLoader().getResourceAsStream("druid.properties");
@@ -34,9 +35,19 @@ public class JdbcUtils {
         }
     }
     public static Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
+        Connection connection = threadLocal.get();
+        if (connection == null) {
+            connection = dataSource.getConnection();
+            threadLocal.set(connection);
+        }
+        return connection;
     }
-    public static void closeConnection(Connection connection) throws SQLException {
-        connection.close();
+    public static void closeConnection() throws SQLException {
+        Connection connection = threadLocal.get();
+        if (connection != null) {
+            threadLocal.remove();
+            connection.setAutoCommit(true);
+            connection.close();
+        }
     }
 }
